@@ -37,7 +37,8 @@ def run(command):
             print '\trun_list: %s' % (', '.join(node['run_list']),)
             print '\troles: %s' % (', '.join(node['automatic']['roles']),)
             print '\trecipes: %s' % (', '.join(node['automatic']['recipes']),)
-            print '\tEC2 instance type %s' % (node['automatic']['ec2']['instance_type'],)
+            if 'ec2' in node['automatic']:
+                print '\tEC2 instance type %s' % (node['automatic']['ec2']['instance_type'],)
             print
 
     extra_args = [item for sublist in flags for item in sublist]
