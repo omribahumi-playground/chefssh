@@ -5,12 +5,21 @@ from ssh import SshCommand
 from scp import ScpCommand
 
 def ssh():
+    """
+        Entry point for the chef-ssh command
+    """
     run(SshCommand())
 
 def scp():
+    """
+        Entry point for the chef-scp command
+    """
     run(ScpCommand())
 
 def run(command):
+    """
+        Handle execution of `command`, a `ChefCommand` subclass
+    """
     flags, arguments = None, None
     try:
         flags, arguments = getopt.getopt(sys.argv[1:], command.getopt_options)
@@ -23,12 +32,16 @@ def run(command):
         print command.getUsage(sys.argv[0])
         sys.exit(1)
 
+    # configures pychef with ~/.chef/knife.rb
     api = chef.autoconfigure()
 
+    # let the command handler do its magic on the command line arguments
     for i, argument in enumerate(arguments):
         argument = command.parseAndSearch(argument, api)
         arguments[i] = argument
 
+    # ChefCommand.parseAndSearch() sets argument.node if it matched against a chef node
+    # display the nodes we're about to connect to
     for argument in arguments:
         if getattr(argument, 'node', None):
             node = argument.node
