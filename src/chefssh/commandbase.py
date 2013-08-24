@@ -5,6 +5,7 @@ import re
 import getopt
 import chef
 import os
+from chef.fabric import DEFAULT_HOSTNAME_ATTR
 
 def search_pick_node(search_query, api):
     """
@@ -12,32 +13,31 @@ def search_pick_node(search_query, api):
         lets the user pick interactivly if there are multiple nodes returned
         Throws LookupError if can't find a matching node
     """
-    search = chef.Search('node', search_query, api=api)
-    search_data = search.data
+    nodes = [node for node in chef.Search('node', search_query, api=api)]
     node = None
 
     # no nodes match the search
-    if search_data['total'] == 0:
+    if not nodes:
         raise exceptions.LookupError("Can't find a node matching %s" % (search_query,))
     # more than one node matched the search. let the user choose one
-    elif search_data['total'] > 1:
+    elif len(nodes) > 1:
         # sort the results before displaying them
-        search_data['rows'].sort(lambda a,b: cmp(a['name'].lower(), b['name'].lower()))
+        nodes.sort(lambda a,b: cmp(a.object.name.lower(), b.object.name.lower()))
 
-        print '%d nodes matched your query:' % (search_data['total'],)
-        for i, current_node in enumerate(search_data['rows']):
-            print "\t%d. %s" % (i+1, current_node['name'],)
+        print '%d nodes matched your query:' % (len(nodes),)
+        for i, current_node in enumerate(nodes):
+            print "\t%d. %s" % (i+1, current_node.object.name,)
 
         while not node:
             selected_node = raw_input('Please select one: ')
-            if not selected_node.isdigit() or not 1 <= int(selected_node) <= search_data['total']:
-                print 'Invalid selection. Please choose a number between 1 and %d' % (search_data['total'],)
+            if not selected_node.isdigit() or not 1 <= int(selected_node) <= len(nodes):
+                print 'Invalid selection. Please choose a number between 1 and %d' % (len(nodes),)
             else:
-                node = search_data['rows'][int(selected_node) - 1]
+                node = nodes[int(selected_node) - 1]
                 print
     # only one result. that's our node.
     else:
-        node = search_data['rows'][0]
+        node = nodes[0]
 
     return node
 
@@ -82,10 +82,13 @@ class ChefCommand(object):
         """
             Return the IP address of the node object `node`
         """
-        return node['automatic']['ec2']['public_ipv4'] \
-                    if 'ec2' in node['automatic'] and \
-                        'public_ipv4' in node['automatic']['ec2'] \
-                    else node['automatic']['ipaddress']
+        for attribute in DEFAULT_HOSTNAME_ATTR:
+            try:
+                return node.object.attributes.get_dotted(attribute)
+            except KeyError:
+                continue
+        else:
+            return None
 
     def search(self, string, api):
         """
